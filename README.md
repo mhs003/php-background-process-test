@@ -1,4 +1,4 @@
-# Laravel Long-Running Command Test
+# PHP Background Process Test
 
 A small Laravel app to test whether a long-running Artisan command can be started without blocking the HTTP request that triggers it — similar to firing off a promise in JavaScript and checking on it later.
 
