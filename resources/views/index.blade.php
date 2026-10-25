@@ -3,4 +3,4 @@ Status: {{ $state }} <br>
 
 <hr>
 
-<a href="/start">Start a new job!</a>
+<a href="/start">Start the job!</a>

@@ -1,58 +1,36 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Laravel Long-Running Command Test
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A small Laravel app to test whether a long-running Artisan command can be started without blocking the HTTP request that triggers it — similar to firing off a promise in JavaScript and checking on it later.
 
-## About Laravel
+## What it does
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- `GET /` shows the current state of the background job (`idle`, `running`, or `finished`) and its PID.
+- `GET /start` launches `php artisan app:generate-text` in the background and immediately redirects back to `/`.
+- The command logs a line every second for 25 seconds, then logs `Finished!`. It is defined in `app/Console/Commands/GenerateText.php`.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## How it does it
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+In `app/Http/Controllers/SiteController.php`:
 
-## Learning Laravel
+1. **Starting** — `start()` builds and runs a shell command that `cd`s into the project, runs `exec php artisan app:generate-text` detached from the request, redirects its output to `storage/logs/generate-text-stdout.log`, and writes the child PID to `storage/app/generate-text.pid`. It then returns a redirect right away, so the request is not held open.
+2. **Tracking** — the PID file is read back on each request.
+3. **Checking** — `isRunning()` uses `posix_kill($pid, 0)` to test whether the process is still alive:
+   - no PID file → `idle`
+   - signal succeeds → `running`
+   - signal fails → `finished`
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Running it
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+php artisan serve
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Copy `.env.example` to `.env` and set `APP_KEY` if needed (`php artisan key:generate`).
 
-## Contributing
+Open the app in a browser, click **Start the job!**, and refresh the page to watch the PID and state change. Progress is visible in `storage/logs/laravel.log`.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Notes
 
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- Only one job runs at a time; starting another while one is already running just redirects home (a choice for this test, not a limitation).
+- This is a proof of concept using `exec()` and POSIX signals, not a queue. It assumes a Unix-like system with the `posix` extension available.

@@ -51,12 +51,12 @@ class SiteController extends Controller
 
         $pidFile = escapeshellarg(storage_path(self::PID_FILE_NAME));
         $projectPath = escapeshellarg(base_path());
-        $stdErrFile = escapeshellarg(storage_path('logs/generate-text-stderr.log'));
+        $stdOutFile = escapeshellarg(storage_path('logs/generate-text-stdout.log'));
 
         $command = 'sh -c ' . escapeshellarg(
             "cd {$projectPath}"
             . " && exec {$commandToRun}"
-            . " >> {$stdErrFile}"
+            . " >> {$stdOutFile}"
             . " 2>&1 < /dev/null"
             . " </dev/null >/dev/null 2>&1 & echo $! > {$pidFile}"
         );
